@@ -5,12 +5,9 @@
 use embassy_executor::Spawner;
 use esp_backtrace as _;
 use esp_hal::{
-    clock::ClockControl,
     delay::Delay,
-    gpio::{Io, Level, Output},
-    peripherals::Peripherals,
+    gpio::{Level, Output},
     prelude::*,
-    system::SystemControl,
     timer::timg::TimerGroup,
 };
 use zumito::motor::DoubleMotorConfig;
@@ -19,23 +16,23 @@ use zumito::motor::DoubleMotorConfig;
 async fn main(_spawner: Spawner) -> ! {
     esp_println::logger::init_logger_from_env();
 
-    let peripherals = Peripherals::take();
-    let system = SystemControl::new(peripherals.SYSTEM);
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
+    let peripherals = esp_hal::init(esp_hal::Config::default());
 
     // setup timer0
-    let clocks = ClockControl::max(system.clock_control).freeze();
-    let timer_group0 = TimerGroup::new(peripherals.TIMG0, &clocks);
-    //embassy::init(&clocks, timer_group0.timer0);
+    let timg0 = TimerGroup::new(peripherals.TIMG0);
+    esp_hal_embassy::init(timg0.timer0);
 
     // setup delay
-    let delay = Delay::new(&clocks);
+    let delay = Delay::new();
 
     // motor pwm
-    let mut motor_config =
-        DoubleMotorConfig::take(io.pins.gpio32, io.pins.gpio33, peripherals.MCPWM0, &clocks);
+    let mut motor_config = DoubleMotorConfig::take(
+        peripherals.GPIO32.into(),
+        peripherals.GPIO33.into(),
+        peripherals.MCPWM0,
+    );
 
-    let mut led = Output::new(io.pins.gpio2, Level::High);
+    let mut led = Output::new(peripherals.GPIO2, Level::High);
 
     let mut duty = 0.;
     loop {

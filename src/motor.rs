@@ -4,22 +4,20 @@ use core::{
 };
 
 use esp_hal::{
-    clock::Clocks,
-    gpio::OutputPin,
+    gpio::AnyPin,
     mcpwm::{
         operator::{PwmActions, PwmPin, PwmPinConfig, PwmUpdateMethod},
         timer::PwmWorkingMode,
         McPwm, PeripheralClockConfig,
     },
-    peripheral::Peripheral,
     peripherals::MCPWM0,
-    prelude::_fugit_RateExtU32,
+    prelude::*,
 };
 
 /// We define MotorPWMPinA for using MCPWM0, operator 0 and pin A.
-type MotorPWMPinA<'d, Pin> = PwmPin<'d, Pin, MCPWM0, 0, true>;
+type MotorPWMPinA<'d> = PwmPin<'d, MCPWM0, 0, true>;
 /// We define MotorPWMPinB for using MCPWM0, operator 0 and pin B.
-type MotorPWMPinB<'d, Pin> = PwmPin<'d, Pin, MCPWM0, 0, false>;
+type MotorPWMPinB<'d> = PwmPin<'d, MCPWM0, 0, false>;
 
 /// True if a single motor configuration has been initialized.
 static _SINGLE_MOTOR_CONFIG_INIT: AtomicBool = AtomicBool::new(false);
@@ -27,17 +25,14 @@ static _SINGLE_MOTOR_CONFIG_INIT: AtomicBool = AtomicBool::new(false);
 static _DOUBLE_MOTOR_CONFIG_INIT: AtomicBool = AtomicBool::new(false);
 
 /// A singleton structure that defines a single motor configuration.
-pub struct SingleMotorConfig<'d, Pin>
-where
-    Pin: OutputPin + 'd,
-{
-    pwm_pin: MotorPWMPinA<'d, Pin>,
+pub struct SingleMotorConfig<'d> {
+    pwm_pin: MotorPWMPinA<'d>,
 }
 
-impl<'d, Pin: OutputPin> SingleMotorConfig<'d, Pin> {
+impl<'d> SingleMotorConfig<'d> {
     const PERIOD: u16 = 256;
 
-    pub fn take(pin: impl Peripheral<P = Pin> + 'd, mcpwm0: MCPWM0, clocks: &Clocks) -> Self {
+    pub fn take(pin: AnyPin, mcpwm0: MCPWM0) -> Self {
         if _SINGLE_MOTOR_CONFIG_INIT.load(Ordering::Relaxed) {
             panic!("single motor config initialized more than once!");
         }
@@ -47,7 +42,7 @@ impl<'d, Pin: OutputPin> SingleMotorConfig<'d, Pin> {
         _SINGLE_MOTOR_CONFIG_INIT.store(true, Ordering::Relaxed);
 
         // configure clock
-        let clock_cfg = PeripheralClockConfig::with_frequency(clocks, 40u32.MHz()).unwrap();
+        let clock_cfg = PeripheralClockConfig::with_frequency(40u32.MHz()).unwrap();
         let mut mcpwm = McPwm::new(mcpwm0, clock_cfg);
         mcpwm.operator0.set_timer(&mcpwm.timer0);
         let pwm_pin = mcpwm.operator0.with_pin_a(
@@ -74,24 +69,15 @@ impl<'d, Pin: OutputPin> SingleMotorConfig<'d, Pin> {
 }
 
 /// A singleton structure that defines a pair of motors configuration.
-pub struct DoubleMotorConfig<'d, PinA, PinB>
-where
-    PinA: OutputPin + 'd,
-    PinB: OutputPin + 'd,
-{
-    pwm_pin_a: MotorPWMPinA<'d, PinA>,
-    pwm_pin_b: MotorPWMPinB<'d, PinB>,
+pub struct DoubleMotorConfig<'d> {
+    pwm_pin_a: MotorPWMPinA<'d>,
+    pwm_pin_b: MotorPWMPinB<'d>,
 }
 
-impl<'d, PinA: OutputPin, PinB: OutputPin> DoubleMotorConfig<'d, PinA, PinB> {
+impl<'d> DoubleMotorConfig<'d> {
     const PERIOD: u16 = 256;
 
-    pub fn take(
-        pin_a: impl Peripheral<P = PinA> + 'd,
-        pin_b: impl Peripheral<P = PinB> + 'd,
-        mcpwm0: MCPWM0,
-        clocks: &Clocks,
-    ) -> Self {
+    pub fn take(pin_a: AnyPin, pin_b: AnyPin, mcpwm0: MCPWM0) -> Self {
         if _SINGLE_MOTOR_CONFIG_INIT.load(Ordering::Relaxed) {
             panic!("single motor config initialized more than once!");
         }
@@ -101,7 +87,7 @@ impl<'d, PinA: OutputPin, PinB: OutputPin> DoubleMotorConfig<'d, PinA, PinB> {
         _DOUBLE_MOTOR_CONFIG_INIT.store(true, Ordering::Relaxed);
 
         // configure clock
-        let clock_cfg = PeripheralClockConfig::with_frequency(clocks, 40u32.MHz()).unwrap();
+        let clock_cfg = PeripheralClockConfig::with_frequency(40u32.MHz()).unwrap();
         let mut mcpwm = McPwm::new(mcpwm0, clock_cfg);
         mcpwm.operator0.set_timer(&mcpwm.timer0);
         let (pwm_pin_a, pwm_pin_b) = mcpwm.operator0.with_pins(
