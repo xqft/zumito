@@ -2,6 +2,9 @@
 #![no_main]
 #![feature(impl_trait_in_assoc_type)]
 
+use core::cell::RefCell;
+
+use critical_section::Mutex;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
@@ -10,7 +13,10 @@ use esp_hal::{
     prelude::*,
     timer::timg::TimerGroup,
 };
-use zumito::{motor::DoubleMotorConfig, sensor};
+use zumito::{
+    motor::DoubleMotorConfig,
+    sensor::{self},
+};
 
 #[main]
 async fn main(spawner: Spawner) -> ! {
@@ -32,12 +38,19 @@ async fn main(spawner: Spawner) -> ! {
     let mut led = Output::new(peripherals.GPIO2, Level::High);
 
     let mut io = Io::new(peripherals.IO_MUX);
-    sensor::setup(
-        &spawner,
-        peripherals.GPIO25.into(),
-        peripherals.GPIO26.into(),
-        &mut io,
-    );
+    io.set_interrupt_handler(handler);
+
+    let ultrasonic_sensor_future =
+        sensor::new(peripherals.GPIO25.into(), peripherals.GPIO26.into());
+
+    let isr = || {
+        ultrasonic_sensor_future.echo_interrupt_handler();
+    };
+
+    #[handler]
+    fn handler() {
+        isr();
+    }
 
     let mut duty = 0.;
     loop {
