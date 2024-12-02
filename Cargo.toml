@@ -23,6 +23,7 @@ embassy-executor = { version = "0.6.3", features = [
 ] }
 embassy-sync = "0.6.1"
 embassy-time = "0.3.2"
+embassy-futures = "0.1.1"
 
 log = { version = "0.4.21" }
 embedded-io = "0.6.1"

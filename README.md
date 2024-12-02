@@ -9,10 +9,10 @@ cargo run --release
 - support motors using ESP32 MCPWM ✅
 - support dual motors ✅
 - add ultrasonic sensor support ✅
-- add dual ultrasonic sensor support 
+- add dual ultrasonic sensor support ✅
 - simplify codebase, remove bullshit
-- check the `assign_resources!` macro
-- check esp-hal sync.rs `lock()` as replacement for critical sections
+    - simplify motor module
+    - simplify ultrasonic module
 
 # Project Overview
 `todo!();`
