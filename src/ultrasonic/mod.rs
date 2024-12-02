@@ -1,6 +1,7 @@
 use embassy_executor::{SpawnError, Spawner};
 use embassy_futures::join::join;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
+use embassy_time::{with_timeout, Duration};
 use esp_hal::{
     delay::Delay,
     gpio::{AnyPin, Io, Level, Output},
@@ -9,6 +10,8 @@ use esp_hal::{
 use echo_handler::EchoSignal;
 
 mod echo_handler;
+
+const TIMEOUT: Duration = Duration::from_millis(200);
 
 pub static DISTANCE0: Signal<CriticalSectionRawMutex, u64> = Signal::new();
 pub static DISTANCE1: Signal<CriticalSectionRawMutex, u64> = Signal::new();
@@ -38,7 +41,10 @@ async fn handle_sensors(trig_pins: [AnyPin; 2]) {
     };
 
     loop {
-        let (distance0, distance1) = join(ultrasonic0.measure(), ultrasonic1.measure()).await;
+        let sensor_future = join(ultrasonic0.measure(), ultrasonic1.measure());
+        let (distance0, distance1) = with_timeout(TIMEOUT, sensor_future)
+            .await
+            .unwrap_or_default();
         DISTANCE0.signal(distance0);
         DISTANCE1.signal(distance1);
     }
