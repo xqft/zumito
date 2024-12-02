@@ -3,17 +3,38 @@
 #![feature(impl_trait_in_assoc_type)]
 
 use embassy_executor::Spawner;
+use embassy_futures::join::join;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 use esp_hal::{
-    gpio::{Io, Level, Output},
+    gpio::{AnyPin, Io, Level, Output},
     prelude::*,
     timer::timg::TimerGroup,
 };
+use esp_println::println;
 use zumito::{
     motor::DoubleMotorConfig,
     ultrasonic::{self},
 };
+
+#[embassy_executor::task]
+async fn print_distances() {
+    loop {
+        let (d0, d1) = join(ultrasonic::DISTANCE0.wait(), ultrasonic::DISTANCE1.wait()).await;
+        println!("distances: {} mm, {} mm", d0, d1);
+        Timer::after(Duration::from_secs(1)).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn blink_led(pin: AnyPin) {
+    let mut led = Output::new(pin, Level::High);
+
+    loop {
+        led.toggle();
+        Timer::after(Duration::from_millis(500)).await;
+    }
+}
 
 #[main]
 async fn main(spawner: Spawner) -> ! {
@@ -32,24 +53,24 @@ async fn main(spawner: Spawner) -> ! {
         peripherals.MCPWM0,
     );
 
-    let mut led = Output::new(peripherals.GPIO2, Level::High);
-
     let mut io = Io::new(peripherals.IO_MUX);
 
     // TOOD: better error handling (use logs? defmt or smth like that)
     ultrasonic::register(
         &spawner,
         &mut io,
-        [peripherals.GPIO25.into(), peripherals.GPIO34.into()],
-        [peripherals.GPIO26.into(), peripherals.GPIO35.into()],
+        [peripherals.GPIO25.into(), peripherals.GPIO27.into()],
+        [peripherals.GPIO26.into(), peripherals.GPIO14.into()],
     )
     .expect("failed to register ultrasonic sensors");
+
+    spawner.spawn(print_distances()).unwrap();
+    spawner.spawn(blink_led(peripherals.GPIO2.into())).unwrap();
 
     let mut duty = 0.;
     loop {
         motor_config.set_duty_cycle_a(duty);
-        led.toggle();
-        Timer::after(Duration::from_secs(1)).await;
         duty = (duty + 0.15) % 1.0;
+        Timer::after(Duration::from_secs(1)).await;
     }
 }
