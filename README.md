@@ -11,8 +11,8 @@ cargo run --release
 - add ultrasonic sensor support ✅
 - add dual ultrasonic sensor support ✅
 - simplify codebase, remove bullshit
-    - simplify motor module
-    - simplify ultrasonic module
+    - simplify motor module ✅
+    - simplify ultrasonic module ✅
 
 # Project Overview
 `todo!();`
