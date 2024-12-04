@@ -13,7 +13,7 @@ use esp_hal::{
 };
 use esp_println::println;
 use zumito::{
-    motor::DoubleMotorConfig,
+    motor,
     ultrasonic::{self},
 };
 
@@ -22,6 +22,17 @@ async fn print_distances() {
     loop {
         let (d0, d1) = join(ultrasonic::DISTANCE0.wait(), ultrasonic::DISTANCE1.wait()).await;
         println!("distances: {} mm, {} mm", d0, d1);
+        Timer::after(Duration::from_secs(1)).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn update_motors() {
+    let mut duty = 0;
+    loop {
+        duty += motor::PWM_PERIOD / 8;
+        motor::DUTY_A.signal(duty);
+        println!("set motor A to duty {}/{}", duty, motor::PWM_PERIOD);
         Timer::after(Duration::from_secs(1)).await;
     }
 }
@@ -47,11 +58,13 @@ async fn main(spawner: Spawner) -> ! {
     esp_hal_embassy::init(timg0.timer0);
 
     // motor pwm
-    let mut motor_config = DoubleMotorConfig::take(
+    motor::register(
+        &spawner,
         peripherals.GPIO32.into(),
         peripherals.GPIO33.into(),
         peripherals.MCPWM0,
-    );
+    )
+    .expect("failed to register motors");
 
     let mut io = Io::new(peripherals.IO_MUX);
 
@@ -65,12 +78,8 @@ async fn main(spawner: Spawner) -> ! {
     .expect("failed to register ultrasonic sensors");
 
     spawner.spawn(print_distances()).unwrap();
+    spawner.spawn(update_motors()).unwrap();
     spawner.spawn(blink_led(peripherals.GPIO2.into())).unwrap();
 
-    let mut duty = 0.;
-    loop {
-        motor_config.set_duty_cycle_a(duty);
-        duty = (duty + 0.15) % 1.0;
-        Timer::after(Duration::from_secs(1)).await;
-    }
+    loop {}
 }
