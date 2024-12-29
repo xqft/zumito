@@ -1,5 +1,3 @@
-use core::u16;
-
 use embassy_executor::{SpawnError, Spawner};
 use embassy_futures::select::{select, Either};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
@@ -22,10 +20,10 @@ type PWMB<'d> = PwmPin<'d, MCPWM0, 0, false>;
 const CLOCK_FREQ_MHZ: u32 = 40;
 const PWM_FREQ_KHZ: u32 = 10;
 
-pub const PWM_PERIOD: u16 = u16::MAX;
+pub const PWM_PERIOD: u8 = u8::MAX;
 
-pub static DUTY_A: Signal<CriticalSectionRawMutex, u16> = Signal::new();
-pub static DUTY_B: Signal<CriticalSectionRawMutex, u16> = Signal::new();
+pub static DUTY_A: Signal<CriticalSectionRawMutex, u8> = Signal::new();
+pub static DUTY_B: Signal<CriticalSectionRawMutex, u8> = Signal::new();
 
 pub fn register(
     spawner: &Spawner,
@@ -45,7 +43,7 @@ pub fn register(
     );
 
     let timer_clock_cfg = peripheral_clock.timer_clock_with_frequency(
-        PWM_PERIOD,
+        PWM_PERIOD.into(),
         PwmWorkingMode::Increase,
         PWM_FREQ_KHZ.kHz(),
     )?;
@@ -60,8 +58,8 @@ pub fn register(
 async fn handle_motors(mut pwm_a: PWMA<'static>, mut pwm_b: PWMB<'static>) {
     loop {
         match select(DUTY_A.wait(), DUTY_B.wait()).await {
-            Either::First(duty) => pwm_a.set_timestamp(duty),
-            Either::Second(duty) => pwm_b.set_timestamp(duty),
+            Either::First(duty) => pwm_a.set_timestamp(duty.into()),
+            Either::Second(duty) => pwm_b.set_timestamp(duty.into()),
         }
     }
 }
