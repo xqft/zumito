@@ -81,7 +81,7 @@ async fn main(spawner: Spawner) -> ! {
     )
     .expect("failed to register ultrasonic sensors");
 
-    spawner.spawn(print_distances()).unwrap();
+    //spawner.spawn(print_distances()).unwrap();
     spawner.spawn(update_motors()).unwrap();
     spawner.spawn(blink_led(peripherals.GPIO2.into())).unwrap();
 

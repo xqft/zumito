@@ -15,6 +15,14 @@ esp-backtrace = { version = "0.14.2", features = [
 esp-hal = { version = "0.22.0", features = ["esp32"] }
 esp-hal-embassy = { version = "0.5.0", features = ["esp32"] }
 esp-println = { version = "0.12.0", features = ["esp32", "log"] }
+esp-wifi = { version = "0.11.0", default-features = false, features = [
+    "esp32",
+    "utils",
+    "wifi",
+    "esp-alloc",
+    "log",
+] }
+esp-alloc = "0.5.0"
 
 embassy-executor = { version = "0.6.3", features = [
     "executor-thread",
@@ -24,6 +32,12 @@ embassy-executor = { version = "0.6.3", features = [
 embassy-sync = "0.6.1"
 embassy-time = "0.3.2"
 embassy-futures = "0.1.1"
+embassy-net = { version = "0.4.0", features = [
+    "tcp",
+    "udp",
+    "dhcpv4",
+    "medium-ethernet",
+] }
 
 log = { version = "0.4.21" }
 embedded-io = "0.6.1"
@@ -54,5 +68,5 @@ debug = 2
 debug-assertions = false
 incremental = false
 lto = 'fat'
-opt-level = 's'
+opt-level = 2
 overflow-checks = false
