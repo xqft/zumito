@@ -4,7 +4,7 @@
 
 use embassy_executor::Spawner;
 use embassy_futures::join::join;
-use embassy_time::{Duration, Timer};
+use embassy_time::{Duration, Instant, Timer};
 use esp_backtrace as _;
 use esp_hal::{
     gpio::{AnyPin, Io, Level, Output},
@@ -12,6 +12,7 @@ use esp_hal::{
     timer::timg::TimerGroup,
 };
 use esp_println::println;
+use log::info;
 use zumito::{
     motor,
     ultrasonic::{self},
@@ -21,7 +22,7 @@ use zumito::{
 async fn print_distances() {
     loop {
         let (d0, d1) = join(ultrasonic::DISTANCE0.wait(), ultrasonic::DISTANCE1.wait()).await;
-        println!("distances: {} mm, {} mm", d0, d1);
+        info!("distances: {} mm, {} mm", d0, d1);
         Timer::after(Duration::from_secs(1)).await;
     }
 }
@@ -32,7 +33,7 @@ async fn update_motors() {
     loop {
         duty += motor::PWM_PERIOD / 8;
         motor::DUTY_A.signal(duty);
-        println!("set motor A to duty {}/{}", duty, motor::PWM_PERIOD);
+        info!("set motor A to duty {}/{}", duty, motor::PWM_PERIOD);
         Timer::after(Duration::from_secs(1)).await;
     }
 }
@@ -40,7 +41,6 @@ async fn update_motors() {
 #[embassy_executor::task]
 async fn blink_led(pin: AnyPin) {
     let mut led = Output::new(pin, Level::High);
-
     loop {
         led.toggle();
         Timer::after(Duration::from_millis(500)).await;
@@ -81,5 +81,22 @@ async fn main(spawner: Spawner) -> ! {
     spawner.spawn(update_motors()).unwrap();
     spawner.spawn(blink_led(peripherals.GPIO2.into())).unwrap();
 
-    loop {}
+    // 34: ECHO1
+    // 35: ECHO2
+    // 32: TRIG1
+    // 33: TRIG2
+
+    // 25: MCPWM1
+    // 26: MCPWM2
+    // 27: MCDIR11
+    // 14: MCDIR12
+    // 12: MCDIR21
+    // 13: MCDIR22
+
+    // 0: IR1
+    // 4: IR2
+
+    loop {
+        Timer::at(Instant::MAX).await;
+    }
 }
