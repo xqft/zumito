@@ -1,10 +1,8 @@
 use core::str::FromStr;
 
 use embassy_executor::Spawner;
-use embassy_net::{
-    udp::{self, PacketMetadata, UdpSocket},
-    DhcpConfig, Stack, StackResources,
-};
+use embassy_net::{DhcpConfig, Stack, StackResources};
+use embassy_sync::once_lock::OnceLock;
 use embassy_time::{Duration, Timer};
 use esp_wifi::{
     wifi::{
@@ -18,16 +16,22 @@ use log::{error, info, warn};
 use static_cell::StaticCell;
 
 const HOSTNAME: &str = "zumito";
+const SOCK: usize = 2;
 
-static ESP_WIFI_CONTROLLER: StaticCell<EspWifiController<'_>> = StaticCell::new();
+static ESP_WIFI_CONTROLLER: OnceLock<EspWifiController<'_>> = OnceLock::new();
 static WIFI_CONTROLLER: StaticCell<WifiController<'_>> = StaticCell::new();
-static STACK: StaticCell<Stack<WifiDevice<'_, WifiStaDevice>>> = StaticCell::new();
-static STACK_RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
+
+static STACK: OnceLock<Stack<WifiDevice<'_, WifiStaDevice>>> = OnceLock::new();
+static STACK_RESOURCES: StaticCell<StackResources<SOCK>> = StaticCell::new();
 
 pub fn set_esp_wifi_controller(
     esp_wifi_controller: EspWifiController<'static>,
-) -> &'static mut EspWifiController<'_> {
-    ESP_WIFI_CONTROLLER.init(esp_wifi_controller)
+) -> &'static EspWifiController<'_> {
+    ESP_WIFI_CONTROLLER.get_or_init(|| esp_wifi_controller)
+}
+
+pub async fn get_stack() -> &'static Stack<WifiDevice<'static, WifiStaDevice>> {
+    STACK.get().await
 }
 
 pub async fn register<'a>(
@@ -43,16 +47,16 @@ pub async fn register<'a>(
     // TODO: more secure seed
     let seed = 42;
 
-    let wifi_controller_ref = WIFI_CONTROLLER.init(wifi_controller);
-    let resources_ref = STACK_RESOURCES.init(StackResources::<3>::new());
-    let stack_ref = STACK.init(Stack::new(wifi_interface, config, resources_ref, seed));
+    let wifi_controller = WIFI_CONTROLLER.init(wifi_controller);
+    let resources = STACK_RESOURCES.init(StackResources::<SOCK>::new());
+    let stack = STACK.get_or_init(|| Stack::new(wifi_interface, config, resources, seed));
 
-    spawner.spawn(connect(wifi_controller_ref)).unwrap();
-    spawner.spawn(process(stack_ref)).unwrap();
+    spawner.spawn(connect(wifi_controller)).unwrap();
+    spawner.spawn(process()).unwrap();
 
     info!("waiting until link is up");
     loop {
-        if stack_ref.is_link_up() {
+        if stack.is_link_up() {
             break;
         }
         Timer::after(Duration::from_millis(500)).await;
@@ -60,7 +64,7 @@ pub async fn register<'a>(
 
     info!("waiting to get IP address");
     loop {
-        if let Some(config) = stack_ref.config_v4() {
+        if let Some(config) = stack.config_v4() {
             info!("IP address: {}", config.address);
             info!("hostname: {HOSTNAME}");
             break;
@@ -68,9 +72,6 @@ pub async fn register<'a>(
         Timer::after(Duration::from_millis(500)).await;
     }
 }
-
-#[embassy_executor::task]
-async fn handle_udp() {}
 
 /// Task for establishing and maintaining a connection
 #[embassy_executor::task]
@@ -121,6 +122,6 @@ async fn connect(controller: &'static mut WifiController<'static>) {
 
 /// Background task to process network events
 #[embassy_executor::task]
-async fn process(stack: &'static Stack<WifiDevice<'static, WifiStaDevice>>) {
-    stack.run().await
+async fn process() {
+    STACK.get().await.run().await
 }

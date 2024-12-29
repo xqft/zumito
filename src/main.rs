@@ -16,7 +16,7 @@ use esp_wifi::wifi::WifiStaDevice;
 use log::info;
 use zumito::{
     motor::{self, Direction},
-    net,
+    net::{self, udp},
     ultrasonic::{self},
 };
 
@@ -72,11 +72,14 @@ async fn main(spawner: Spawner) -> ! {
         peripherals.RADIO_CLK,
     )
     .unwrap();
-    let esp_wifi_controller_ref = net::set_esp_wifi_controller(esp_wifi_controller);
+    let esp_wifi_controller_ref = net::wifi::set_esp_wifi_controller(esp_wifi_controller);
     let (wifi_interface, wifi_controller) =
         esp_wifi::wifi::new_with_mode(esp_wifi_controller_ref, peripherals.WIFI, WifiStaDevice)
             .unwrap();
-    net::register(&spawner, wifi_controller, wifi_interface).await;
+    net::wifi::register(&spawner, wifi_controller, wifi_interface).await;
+
+    // init udp receiver
+    udp::register(&spawner, net::wifi::get_stack().await);
 
     // motor pwm
     motor::register(
