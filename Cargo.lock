@@ -1436,4 +1436,5 @@ dependencies = [
  "log",
  "portable-atomic",
  "smoltcp",
+ "static_cell",
 ]

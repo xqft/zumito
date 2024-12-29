@@ -3,4 +3,5 @@
 #![feature(impl_trait_in_assoc_type)]
 
 pub mod motor;
+pub mod net;
 pub mod ultrasonic;

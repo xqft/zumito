@@ -7,13 +7,18 @@ cargo run --release
 ```
 # TO-DO
 - support motors using ESP32 MCPWM ✅
-- support dual motors ✅
-- support changing direction for motors ✅
+    - support dual motors ✅
+    - support changing direction ✅
 - add ultrasonic sensor support ✅
-- add dual ultrasonic sensor support ✅
+    - add dual sensor support ✅
+- add manual control over wifi
+    - connect to wifi ✅
+    - define simple protocol via UDP for controlling motors
+    - create client that will send UDP datagrams to device
 - simplify codebase, remove bullshit
     - simplify motor module ✅
     - simplify ultrasonic module ✅
+    - simplify net module
 
 # Project Overview
 `todo!();`

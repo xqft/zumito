@@ -5,6 +5,8 @@ runner = "espflash flash --monitor"
 
 [env]
 ESP_LOG = "INFO"
+SSID = ""
+PASSWORD = ""
 
 [build]
 rustflags = ["-C", "link-arg=-nostartfiles"]

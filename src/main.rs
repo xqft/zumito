@@ -9,11 +9,14 @@ use esp_backtrace as _;
 use esp_hal::{
     gpio::{AnyPin, Io, Level, Output},
     prelude::*,
+    rng::Rng,
     timer::timg::TimerGroup,
 };
+use esp_wifi::wifi::WifiStaDevice;
 use log::info;
 use zumito::{
     motor::{self, Direction},
+    net,
     ultrasonic::{self},
 };
 
@@ -48,13 +51,32 @@ async fn blink_led(pin: AnyPin) {
 
 #[main]
 async fn main(spawner: Spawner) -> ! {
+    // init logger
     esp_println::logger::init_logger_from_env();
 
+    // alloc heap (mostly used for wifi)
+    esp_alloc::heap_allocator!(72 * 1024);
+
+    // init hal, take peripherals
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
-    // setup timer0
+    // init embasssy
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
+
+    // init wifi
+    let timg1 = TimerGroup::new(peripherals.TIMG1);
+    let esp_wifi_controller = esp_wifi::init(
+        timg1.timer0,
+        Rng::new(peripherals.RNG),
+        peripherals.RADIO_CLK,
+    )
+    .unwrap();
+    let esp_wifi_controller_ref = net::set_esp_wifi_controller(esp_wifi_controller);
+    let (wifi_interface, wifi_controller) =
+        esp_wifi::wifi::new_with_mode(esp_wifi_controller_ref, peripherals.WIFI, WifiStaDevice)
+            .unwrap();
+    net::register(&spawner, wifi_controller, wifi_interface).await;
 
     // motor pwm
     motor::register(
