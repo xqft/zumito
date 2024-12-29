@@ -2,7 +2,7 @@ use embassy_executor::{SpawnError, Spawner};
 use embassy_futures::select::{select, Either};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use esp_hal::{
-    gpio::AnyPin,
+    gpio::{AnyPin, Level, Output},
     mcpwm::{
         operator::{PwmPin, PwmPinConfig},
         timer::PwmWorkingMode,
@@ -22,23 +22,25 @@ const PWM_FREQ_KHZ: u32 = 10;
 
 pub const PWM_PERIOD: u8 = u8::MAX;
 
-pub static DUTY_A: Signal<CriticalSectionRawMutex, u8> = Signal::new();
-pub static DUTY_B: Signal<CriticalSectionRawMutex, u8> = Signal::new();
+pub static MOTOR_1: Signal<CriticalSectionRawMutex, (u8, Direction)> = Signal::new();
+pub static MOTOR_2: Signal<CriticalSectionRawMutex, (u8, Direction)> = Signal::new();
 
 pub fn register(
     spawner: &Spawner,
-    pin_a: AnyPin,
-    pin_b: AnyPin,
+    pwm_pins: [AnyPin; 2],
+    dir_pins: [AnyPin; 4],
     mcpwm_peripheral: MCPWM0,
 ) -> Result<(), MotorError> {
     let peripheral_clock = PeripheralClockConfig::with_frequency(CLOCK_FREQ_MHZ.MHz())?;
     let mut mcpwm = McPwm::new(mcpwm_peripheral, peripheral_clock);
 
+    let [pwm_pin1, pwm_pin2] = pwm_pins;
+
     mcpwm.operator0.set_timer(&mcpwm.timer0);
-    let (pwm_a, pwm_b) = mcpwm.operator0.with_pins(
-        pin_a,
+    let (pwm_1, pwm_2) = mcpwm.operator0.with_pins(
+        pwm_pin1,
         PwmPinConfig::UP_ACTIVE_HIGH,
-        pin_b,
+        pwm_pin2,
         PwmPinConfig::UP_ACTIVE_HIGH,
     );
 
@@ -49,17 +51,44 @@ pub fn register(
     )?;
     mcpwm.timer0.start(timer_clock_cfg);
 
-    spawner.spawn(handle_motors(pwm_a, pwm_b))?;
+    spawner.spawn(handle_motors(pwm_1, pwm_2, dir_pins))?;
 
     Ok(())
 }
 
 #[embassy_executor::task]
-async fn handle_motors(mut pwm_a: PWMA<'static>, mut pwm_b: PWMB<'static>) {
+async fn handle_motors(mut pwm_a: PWMA<'static>, mut pwm_b: PWMB<'static>, dir_pins: [AnyPin; 4]) {
+    let [mut dir_pin11, mut dir_pin12, mut dir_pin21, mut dir_pin22] =
+        dir_pins.map(|pin| Output::new(pin, Level::Low));
+
     loop {
-        match select(DUTY_A.wait(), DUTY_B.wait()).await {
-            Either::First(duty) => pwm_a.set_timestamp(duty.into()),
-            Either::Second(duty) => pwm_b.set_timestamp(duty.into()),
+        match select(MOTOR_1.wait(), MOTOR_2.wait()).await {
+            Either::First((duty, dir)) => {
+                let levels: (Level, Level) = dir.into();
+                dir_pin11.set_level(levels.0);
+                dir_pin12.set_level(levels.1);
+                pwm_a.set_timestamp(duty.into())
+            }
+            Either::Second((duty, dir)) => {
+                let levels: (Level, Level) = dir.into();
+                dir_pin21.set_level(levels.0);
+                dir_pin22.set_level(levels.1);
+                pwm_b.set_timestamp(duty.into())
+            }
+        }
+    }
+}
+
+pub enum Direction {
+    Forward,
+    Reverse,
+}
+
+impl Into<(Level, Level)> for Direction {
+    fn into(self) -> (Level, Level) {
+        match self {
+            Self::Forward => (Level::Low, Level::High),
+            Self::Reverse => (Level::High, Level::Low),
         }
     }
 }

@@ -11,10 +11,9 @@ use esp_hal::{
     prelude::*,
     timer::timg::TimerGroup,
 };
-use esp_println::println;
 use log::info;
 use zumito::{
-    motor,
+    motor::{self, Direction},
     ultrasonic::{self},
 };
 
@@ -32,7 +31,7 @@ async fn update_motors() {
     let mut duty = 0;
     loop {
         duty += motor::PWM_PERIOD / 8;
-        motor::DUTY_A.signal(duty);
+        motor::MOTOR_1.signal((duty, Direction::Forward));
         info!("set motor A to duty {}/{}", duty, motor::PWM_PERIOD);
         Timer::after(Duration::from_secs(1)).await;
     }
@@ -60,8 +59,13 @@ async fn main(spawner: Spawner) -> ! {
     // motor pwm
     motor::register(
         &spawner,
-        peripherals.GPIO32.into(),
-        peripherals.GPIO33.into(),
+        [peripherals.GPIO25.into(), peripherals.GPIO26.into()],
+        [
+            peripherals.GPIO27.into(),
+            peripherals.GPIO14.into(),
+            peripherals.GPIO12.into(),
+            peripherals.GPIO13.into(),
+        ],
         peripherals.MCPWM0,
     )
     .expect("failed to register motors");
@@ -72,8 +76,8 @@ async fn main(spawner: Spawner) -> ! {
     ultrasonic::register(
         &spawner,
         &mut io,
-        [peripherals.GPIO25.into(), peripherals.GPIO27.into()],
-        [peripherals.GPIO26.into(), peripherals.GPIO14.into()],
+        [peripherals.GPIO34.into(), peripherals.GPIO35.into()],
+        [peripherals.GPIO32.into(), peripherals.GPIO33.into()],
     )
     .expect("failed to register ultrasonic sensors");
 

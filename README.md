@@ -8,6 +8,7 @@ cargo run --release
 # TO-DO
 - support motors using ESP32 MCPWM ✅
 - support dual motors ✅
+- support changing direction for motors ✅
 - add ultrasonic sensor support ✅
 - add dual ultrasonic sensor support ✅
 - simplify codebase, remove bullshit
