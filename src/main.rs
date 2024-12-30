@@ -15,7 +15,8 @@ use esp_hal::{
 use esp_wifi::wifi::WifiStaDevice;
 use log::info;
 use zumito::{
-    motor::{self, Direction},
+    control,
+    motor::{self},
     net::{self, udp},
     ultrasonic::{self},
 };
@@ -30,22 +31,11 @@ async fn print_distances() {
 }
 
 #[embassy_executor::task]
-async fn update_motors() {
-    let mut duty = 0;
-    loop {
-        duty += motor::PWM_PERIOD / 8;
-        motor::MOTOR_1.signal((duty, Direction::Forward));
-        info!("set motor A to duty {}/{}", duty, motor::PWM_PERIOD);
-        Timer::after(Duration::from_secs(1)).await;
-    }
-}
-
-#[embassy_executor::task]
 async fn blink_led(pin: AnyPin) {
     let mut led = Output::new(pin, Level::High);
     loop {
         led.toggle();
-        Timer::after(Duration::from_millis(500)).await;
+        Timer::after(Duration::from_millis(200)).await;
     }
 }
 
@@ -106,8 +96,9 @@ async fn main(spawner: Spawner) -> ! {
     )
     .expect("failed to register ultrasonic sensors");
 
-    //spawner.spawn(print_distances()).unwrap();
-    spawner.spawn(update_motors()).unwrap();
+    control::manual::spawn(&spawner);
+
+    spawner.spawn(print_distances()).unwrap();
     spawner.spawn(blink_led(peripherals.GPIO2.into())).unwrap();
 
     // 34: ECHO1
@@ -122,8 +113,8 @@ async fn main(spawner: Spawner) -> ! {
     // 12: MCDIR21
     // 13: MCDIR22
 
-    // 0: IR1
-    // 4: IR2
+    // 4: IR1
+    // 16: IR2
 
     loop {
         Timer::at(Instant::MAX).await;
