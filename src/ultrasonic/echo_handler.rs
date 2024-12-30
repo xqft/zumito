@@ -77,7 +77,7 @@ fn isr() {
                 .borrow(cs)
                 .borrow_mut()
                 .as_mut()
-                .expect("echo input 0 not initialized"),
+                .expect("echo input 1 not initialized"),
             &ECHO_SIGNAL1,
         );
     });
