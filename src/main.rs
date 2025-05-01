@@ -22,15 +22,6 @@ use zumito::{
 };
 
 #[embassy_executor::task]
-async fn print_distances() {
-    loop {
-        let (d0, d1) = join(ultrasonic::DISTANCE0.wait(), ultrasonic::DISTANCE1.wait()).await;
-        info!("distances: {} mm, {} mm", d0, d1);
-        Timer::after(Duration::from_secs(1)).await;
-    }
-}
-
-#[embassy_executor::task]
 async fn blink_led(pin: AnyPin) {
     let mut led = Output::new(pin, Level::High);
     loop {
@@ -96,9 +87,9 @@ async fn main(spawner: Spawner) -> ! {
     )
     .expect("failed to register ultrasonic sensors");
 
-    control::manual::spawn(&spawner);
+    //control::manual::spawn(&spawner);
+    control::pusher::spawn(&spawner);
 
-    spawner.spawn(print_distances()).unwrap();
     spawner.spawn(blink_led(peripherals.GPIO2.into())).unwrap();
 
     // 34: ECHO1

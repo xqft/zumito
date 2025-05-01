@@ -22,7 +22,8 @@ const PWM_FREQ_KHZ: u32 = 10;
 
 pub const PWM_PERIOD: u8 = u8::MAX;
 
-pub static MOTOR_1: Signal<CriticalSectionRawMutex, (u8, Direction)> = Signal::new();
+pub static MOTOR_1: Signal<CriticalSectionRawMutex, Result<(u8, Direction), MotorError>> =
+    Signal::new();
 pub static MOTOR_2: Signal<CriticalSectionRawMutex, (u8, Direction)> = Signal::new();
 
 pub fn register(
