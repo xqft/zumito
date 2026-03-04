@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="media/zumito_gearbox.png" height="300"/>
+  <img src="media/zumito_not_interested.gif" height="300"/>
+</p>
+<p align="center"><i>he's just not interested in following the target rn.</i></p>
+
 # Build and flash
 install Rust (via [rustup](https://www.rust-lang.org/tools/install)) and the esp-rs toolchain (via [espup](https://docs.esp-rs.org/book/installation/riscv-and-xtensa.html)).
 
